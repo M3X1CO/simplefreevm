@@ -1,0 +1,8 @@
+docker rm -f lxde && docker run -d \
+  --name lxde \
+  -p 8080:80 \
+  -v /dev/shm:/dev/shm \
+  -e RESOLUTION=1280x720 \
+  dorowu/ubuntu-desktop-lxde-vnc
+
+docker rm -f lxde

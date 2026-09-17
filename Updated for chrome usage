@@ -1,0 +1,93 @@
+mkdir ~/chrome-desktop
+cd ~/chrome-desktop
+
+nano Dockerfile
+
+FROM ubuntu:24.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV DISPLAY=:1
+ENV VNC_PORT=5901
+
+RUN apt-get update && apt-get install -y \
+    xfce4 \
+    xfce4-goodies \
+    x11vnc \
+    xvfb \
+    novnc \
+    websockify \
+    wget \
+    curl \
+    sudo \
+    dbus-x11 \
+    xterm \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install current Google Chrome
+RUN wget -O /tmp/chrome.deb \
+    https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb \
+    && apt-get update \
+    && apt-get install -y /tmp/chrome.deb \
+    && rm /tmp/chrome.deb \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root desktop user
+RUN useradd -m -s /bin/bash desktop \
+    && echo "desktop ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/desktop \
+    && chmod 0440 /etc/sudoers.d/desktop
+
+COPY start.sh /start.sh
+RUN chmod +x /start.sh
+
+USER desktop
+WORKDIR /home/desktop
+
+CMD ["/start.sh"]
+
+nano start.sh
+
+#!/bin/bash
+
+export DISPLAY=:1
+export XDG_RUNTIME_DIR=/tmp/runtime-desktop
+
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
+# Start virtual display
+Xvfb :1 -screen 0 1280x720x24 &
+
+sleep 2
+
+# Start XFCE
+dbus-launch --exit-with-session startxfce4 &
+
+sleep 3
+
+# Start VNC server
+x11vnc \
+    -display :1 \
+    -forever \
+    -shared \
+    -rfbport 5901 \
+    -nopw \
+    &
+
+sleep 2
+
+# Start browser-accessible VNC
+websockify \
+    --web=/usr/share/novnc \
+    80 \
+    localhost:5901
+
+docker build -t chrome-desktop .
+
+docker run -d \
+  --name lxde \
+  --cap-add=SYS_ADMIN \
+  -p 8080:80 \
+  -v /dev/shm:/dev/shm \
+  chrome-desktop
+
+https://8080-cs-2cf2cf36-8aae-4775-a9e0-6e3c1cc115d1.cs-us-west1-wolo.cloudshell.dev/vnc.html without the final / 

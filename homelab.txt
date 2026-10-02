@@ -35,3 +35,21 @@ docker exec -d -u root lxde tailscaled \
 docker exec -u root lxde tailscale up --exit-node=<homelab-tailscale-ip>
 
 
+
+docker exec -it -u root lxde bash
+
+# is the daemon running?
+pgrep tailscaled || echo "not running"
+
+# start it (userspace mode, with a SOCKS proxy for Chrome)
+nohup tailscaled --tun=userspace-networking \
+  --socks5-server=localhost:1055 \
+  --state=/var/lib/tailscale/tailscaled.state \
+  > /var/log/tailscaled.log 2>&1 &
+
+sleep 3
+
+# bring it up and use the homelab as the exit node
+tailscale up --exit-node=<homelab-tailscale-ip>
+
+
